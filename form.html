@@ -12,7 +12,8 @@
     .survey__form { margin: 0 0 2rem; padding: 1.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
     .survey__title { margin-top: 0; }
     .survey__field { margin: 0 0 1.75rem; padding: 0; border: 0; min-width: 0; }
-    .survey__label { display: block; margin-bottom: .35rem; padding: 0; font-weight: 600; color: var(--pico-color); }
+    .survey__label, .survey__hint, .survey__choice span, .survey__title, .survey__thanks { overflow-wrap: anywhere; }
+    .survey__label { display: block; max-width: 100%; margin-bottom: .35rem; padding: 0; font-weight: 600; color: var(--pico-color); }
     .survey__required { color: var(--pico-del-color); }
     .survey__hint { display: block; margin: 0 0 .6rem; color: var(--pico-muted-color); font-size: .875em; }
     .survey__error { display: block; margin-top: .4rem; color: var(--pico-del-color); font-size: .875em; }
@@ -91,7 +92,9 @@
         closed: 'Эта форма пока не принимает ответы.',
         notFound: 'Форма изменилась или недоступна. Обновите страницу.',
         noFiles: 'Поля для файлов не поддерживаются.',
-        failed: 'Не удалось отправить: '
+        failed: 'Не удалось отправить: ',
+        offline: 'проверьте подключение и попробуйте ещё раз.',
+        httpStatus: 'сервер ответил {n}.'
       } : {
         submit: 'Submit',
         sending: 'Sending…',
@@ -111,7 +114,9 @@
         closed: 'This form does not accept answers yet.',
         notFound: 'This form has changed or is not available. Reload the page.',
         noFiles: 'File fields are not supported.',
-        failed: 'Could not send: '
+        failed: 'Could not send: ',
+        offline: 'check your connection and try again.',
+        httpStatus: 'the server answered {n}.'
       };
       var MUTATION = 'mutation ($input: SubmitFormInput!) { submitForm(input: $input) { __typename ' +
         '... on SubmitFormPayload { submitId } ' +
@@ -159,7 +164,12 @@
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: MUTATION, variables: { input: input } })
-        }).then(function (res) { return res.json(); }).then(function (body) {
+        }).catch(function () {
+          throw new Error(T.offline);
+        }).then(function (res) {
+          if (!res.ok) throw new Error(fmt(T.httpStatus, res.status));
+          return res.json();
+        }).then(function (body) {
           if (body.errors && body.errors.length) throw new Error(body.errors[0].message);
           return body.data.submitForm;
         });

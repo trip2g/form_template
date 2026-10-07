@@ -11,7 +11,7 @@ else to upload.
 
 ## Install
 
-In the root of your trip2g vault:
+Requires trip2g ≥ 0.11.0. In the root of your trip2g vault:
 
 ```bash
 mkdir -p _layouts
@@ -134,11 +134,13 @@ least 3 characters.") and scrolls to it.
 `forms:` with several named forms shows each in its own box, ordered by the
 form's key, A to Z. Give each one a `title`.
 
-`form_ref:` works when it names the shared note by its URL:
+`form_ref:` works when it names the shared note by the address its page
+opens at. trip2g turns `-` in a file name into `_`, so the note
+`templates/team-survey.md` is at `/templates/team_survey`:
 
 ```yaml
-form_ref: /templates/team-survey
-form_ref: "[[/templates/team-survey]]"
+form_ref: /templates/team_survey
+form_ref: "[[/templates/team_survey]]"
 ```
 
 The labels come from the shared note too.
@@ -168,6 +170,56 @@ These come from trip2g, not from the template.
 - **`form_ref` must be a URL.** A path (`templates/team-survey.md`) or a link
   without the leading slash (`[[templates/team-survey]]`) shows no form:
   trip2g couldn't find the form when the answer is sent.
+- **A signed-in person with no subgraph grant can't open a `free: true`
+  note.** trip2g answers 403 to them while a guest gets the page, so they
+  can't answer a public survey without signing out. A note in a subgraph
+  that requires sign-in works for every signed-in person.
+
+## Try it locally
+
+[`docker-compose.yml`](docker-compose.yml) starts trip2g 0.11.0 on
+<http://localhost:18081> and a one-off `seed` service that uploads
+`form.html`, [`example/survey.md`](example/survey.md) and the test notes in
+[`stand/notes`](stand/notes):
+
+```bash
+docker compose up
+```
+
+The stand is ready when `seed` prints `ready` and exits. Every note except the
+example survey is open to guests: try <http://localhost:18081/fields>, `/multi`,
+`/ru` or `/turnstile`. The survey needs sign-in, so sign in as the admin
+(`owner@example.com`) with a one-time link:
+
+```bash
+docker compose exec trip2g /trip2g login-link
+```
+
+Open the printed link within five minutes, then open
+<http://localhost:18081/survey>. Answers are in the admin panel under Forms.
+
+The stand runs with `DEV=true`, so the sign-in code for any existing user is
+`111111`: the admin, and `tester@example.com`, a user without admin rights. It
+also uses Cloudflare's always-pass Turnstile test keys. Its data lives
+in memory and is gone after `docker compose down`. Set `STAND_PORT` to use
+another port.
+
+## Tests
+
+The end-to-end tests drive Chromium against the stand with Playwright and read
+answers back through the admin GraphQL API:
+
+```bash
+docker compose up -d trip2g
+docker compose run --rm seed
+npm ci
+npx playwright install chromium
+npx playwright test
+```
+
+[`.github/workflows/e2e.yml`](.github/workflows/e2e.yml) runs the same on every
+push and pull request. A test marked `test.fail` documents a trip2g limitation
+from the list above: it passes while the limitation is there.
 
 ## How it works
 
